@@ -6,6 +6,7 @@ import (
 	"github.com/spf13/viper"
 )
 
+//初始化設定檔
 func init() {
 	viper.SetConfigName("config")
 	viper.SetConfigType("json")
