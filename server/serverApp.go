@@ -15,17 +15,20 @@ type App struct {
 
 func (t *App) Initialize() {
 	t.router = mux.NewRouter().StrictSlash(true)
+	t.setupRoutes()
+
+}
+
+func (t *App) setupRoutes() {
+	t.router.PathPrefix("/static/").Handler(http.StripPrefix("/static/", http.FileServer(http.Dir("./static"))))
 	var module modules.Module
 	module.Initialize()
-	t.addHandlers(module.APIMap)
-
-	t.router.PathPrefix("/static/").Handler(http.StripPrefix("/static/", http.FileServer(http.Dir("./static"))))
-	t.router.HandleFunc("/", Index)
+	t.addHandlers(module.RoutesMap)
 }
 
 func (t *App) addHandlers(src map[string]func(http.ResponseWriter, *http.Request)) {
 	for key, value := range src {
-		t.router.HandleFunc("/api"+key, value)
+		t.router.HandleFunc(key, value)
 	}
 }
 
@@ -37,9 +40,4 @@ func (t *App) Run() {
 		log.Printf("Defaulting to port %s", port)
 	}
 	log.Fatal(http.ListenAndServe(":"+port, t.router))
-}
-
-func Index(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	http.ServeFile(w, r, "./static/index.html")
 }
