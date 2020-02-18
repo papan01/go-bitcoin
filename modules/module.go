@@ -2,6 +2,7 @@ package modules
 
 import "net/http"
 
+//整合程式中所需要用到的handler
 type Module struct {
 	RoutesMap map[string]func(http.ResponseWriter, *http.Request)
 }

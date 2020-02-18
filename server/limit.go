@@ -10,41 +10,41 @@ import (
 	"golang.org/x/time/rate"
 )
 
-// Create a custom visitor struct which holds the rate limiter for each
-// visitor and the last time that the visitor was seen.
+//訪客struct:
+//limiter: 訪客訪問的限制器
+//lastSeen: 訪客最後訪問頁面的最後時間
 type visitor struct {
 	limiter  *rate.Limiter
 	lastSeen time.Time
 }
 
-// Change the the map to hold values of the type visitor.
+//使用map紀錄訪客的IP以及對應的struct
 var visitors = make(map[string]*visitor)
 var mu sync.Mutex
 
-// Run a background goroutine to remove old entries from the visitors map.
+//背景執行cleanupVisitors
 func init() {
 	go cleanupVisitors()
 }
 
+//確認用戶是否存在於visitors中，若沒有則為其建立，更新最後訪問時間
+//Limiter的核心概念使用Token_bucket-https://godoc.org/golang.org/x/time/rate#Limiter
+//、https://en.wikipedia.org/wiki/Token_bucket
 func getVisitor(ip string) *rate.Limiter {
 	mu.Lock()
 	defer mu.Unlock()
 
 	v, exists := visitors[ip]
 	if !exists {
-		limiter := rate.NewLimiter(1, 3)
-		// Include the current time when creating a new visitor.
+		limiter := rate.NewLimiter(1, 10)
 		visitors[ip] = &visitor{limiter, time.Now()}
 		return limiter
 	}
-
-	// Update the last seen time for the visitor.
 	v.lastSeen = time.Now()
 	return v.limiter
 }
 
-// Every minute check the map for visitors that haven't been seen for
-// more than 3 minutes and delete the entries.
+//每分鐘確認是否有訪客超過三分鐘未在訪問，若有則從visitors中刪除
 func cleanupVisitors() {
 	for {
 		time.Sleep(time.Minute)
@@ -59,6 +59,7 @@ func cleanupVisitors() {
 	}
 }
 
+//提供使用限制器的主要接口
 func limit(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ip, _, err := net.SplitHostPort(r.RemoteAddr)
