@@ -7,12 +7,17 @@ function numberWithCommas(x) {
 
 const Content = () => {
   const [bitCoins, setBitCoins] = useState([]);
+  const ws = new WebSocket(`ws://${window.location.host}/ws`);
   useEffect(() => {
-    fetch('/api/btc')
-      .then(response => response.json())
-      .then(result => setBitCoins([...result]))
-      .catch(error => error);
-  }, []);
+    ws.onopen = () => console.log('connected');
+
+    ws.onmessage = evt => {
+      const message = JSON.parse(evt.data);
+      setBitCoins([...message]);
+    };
+
+    ws.onclose = () => console.log('disconnected');
+  }, [ws.onclose, ws.onmessage, ws.onopen]);
 
   return (
     <main>
