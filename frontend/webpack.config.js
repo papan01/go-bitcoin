@@ -2,8 +2,6 @@ const path = require('path');
 const { CleanWebpackPlugin } = require('clean-webpack-plugin');
 const HtmlWebpackPlugin = require('html-webpack-plugin');
 const MiniCssExtractPlugin = require('mini-css-extract-plugin');
-const { BundleAnalyzerPlugin } = require('webpack-bundle-analyzer');
-const Visualizer = require('webpack-visualizer-plugin');
 
 const ROOT_DIR = path.resolve(__dirname);
 const resolvePath = (...args) => path.resolve(ROOT_DIR, ...args);
@@ -36,8 +34,6 @@ module.exports = ({ mode }) => {
         filename: '[name].css',
         chunkFilename: '[id].css',
       }),
-      new BundleAnalyzerPlugin(),
-      new Visualizer(),
     ],
     output: {
       filename: isDev ? '[name].js' : '[name].[chunkhash:8].js',
