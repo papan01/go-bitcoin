@@ -1,23 +1,20 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import './style.scss';
 
 function numberWithCommas(x) {
   return x.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
 }
 
+const ws = new WebSocket(`${(window.location.protocol === 'https:' ? 'wss://' : 'ws://') + window.location.host}/ws`);
+ws.onopen = () => console.log('connected');
+ws.onclose = () => console.log('disconnected');
+
 const Content = () => {
   const [bitCoins, setBitCoins] = useState([]);
-  const ws = new WebSocket(`ws://${window.location.host}/ws`);
-  useEffect(() => {
-    ws.onopen = () => console.log('connected');
-
-    ws.onmessage = evt => {
-      const message = JSON.parse(evt.data);
-      setBitCoins([...message]);
-    };
-
-    ws.onclose = () => console.log('disconnected');
-  }, [ws.onclose, ws.onmessage, ws.onopen]);
+  ws.onmessage = evt => {
+    const message = JSON.parse(evt.data);
+    setBitCoins([...message]);
+  };
 
   return (
     <main>
