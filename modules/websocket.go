@@ -1,6 +1,8 @@
 package modules
 
 import (
+	"encoding/json"
+	"io/ioutil"
 	"log"
 	"net/http"
 	"time"
@@ -16,19 +18,18 @@ var upgrader = websocket.Upgrader{
 // 定義一個發送器，不斷詢問bitcoin api，傳送給websocekt endpoint
 func transmitter(conn *websocket.Conn) {
 	for {
-		req, err := http.NewRequest("GET", "http://localhost:8080/api/btc", nil)
-		req.Header.Set("Content-Type", "application/json")
+		resp, err := http.Get("http://localhost:8080/api/btc")
 		if err != nil {
 			log.Println("Error create request")
 			return
 		}
 		var bitcoins []BitCoin
-		statusCode := sendRequest(req, &bitcoins)
-		if statusCode == http.StatusOK {
-			if err := conn.WriteJSON(bitcoins); err != nil {
-				log.Println(err)
-				return
-			}
+		defer resp.Body.Close()
+		body, err := ioutil.ReadAll(resp.Body)
+		json.Unmarshal(body, &bitcoins)
+		if err := conn.WriteJSON(bitcoins); err != nil {
+			log.Println(err)
+			return
 		}
 		time.Sleep(time.Second * 20)
 	}
@@ -41,6 +42,7 @@ func WsEndpoint(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		log.Println(err)
 	}
+	defer ws.Close()
 	log.Println("Client Connected")
-	go transmitter(ws)
+	transmitter(ws)
 }
