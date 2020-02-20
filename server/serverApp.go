@@ -25,6 +25,7 @@ func (t *App) initialize() {
 func (t *App) setupRoutes() {
 	t.router.PathPrefix("/static/").Handler(http.StripPrefix("/static/", http.FileServer(http.Dir("./static"))))
 	registerHandlers(t.router)
+	t.router.Use(limit)
 }
 
 //啟動server
