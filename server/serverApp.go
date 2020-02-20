@@ -1,7 +1,6 @@
 package server
 
 import (
-	"bitcoin/modules"
 	"log"
 	"net/http"
 	"os"
@@ -9,37 +8,32 @@ import (
 	"github.com/gorilla/mux"
 )
 
+//程式主結構:
+//router: a request router
 type App struct {
 	router *mux.Router
 }
 
-func (t *App) Initialize() {
+//初始化router與設置routes，設置middlewares
+func (t *App) initialize() {
 	t.router = mux.NewRouter().StrictSlash(true)
-	var module modules.Module
-	module.Initialize()
-	t.addHandlers(module.APIMap)
+	t.setupRoutes()
+	//t.router.Use(limit)
+}
 
+//設置靜態網頁路徑，與註冊handlers
+func (t *App) setupRoutes() {
 	t.router.PathPrefix("/static/").Handler(http.StripPrefix("/static/", http.FileServer(http.Dir("./static"))))
-	t.router.HandleFunc("/", Index)
+	registerHandlers(t.router)
 }
 
-func (t *App) addHandlers(src map[string]func(http.ResponseWriter, *http.Request)) {
-	for key, value := range src {
-		t.router.HandleFunc("/api"+key, value)
-	}
-}
-
+//啟動server
 func (t *App) Run() {
-	t.Initialize()
+	t.initialize()
 	port := os.Getenv("PORT")
 	if port == "" {
 		port = "8080"
 		log.Printf("Defaulting to port %s", port)
 	}
 	log.Fatal(http.ListenAndServe(":"+port, t.router))
-}
-
-func Index(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	http.ServeFile(w, r, "./static/index.html")
 }

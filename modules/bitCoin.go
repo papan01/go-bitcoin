@@ -2,17 +2,17 @@ package modules
 
 import (
 	"encoding/json"
-	"fmt"
 	"io/ioutil"
+	"log"
 	"net/http"
 	"net/url"
-	"os"
 	"strconv"
 	"sync"
 
 	"github.com/spf13/viper"
 )
 
+//CoinMarketCap，https://coinmarketcap.com/api/documentation/v1/
 type CoinMarketCap struct {
 	Data struct {
 		BTC struct {
@@ -28,6 +28,7 @@ type CoinMarketCap struct {
 	} `json:"data"`
 }
 
+//CoinGecKo，https://www.coingecko.com/api/documentations/v3
 type CoinGecKo struct {
 	Bitcoin struct {
 		Price            float64 `json:"usd"`
@@ -37,6 +38,7 @@ type CoinGecKo struct {
 	} `json:"bitcoin"`
 }
 
+//Nomics，https://docs.nomics.com/
 type Nomics struct {
 	Price     string `json:"price"`
 	MarketCap string `json:"market_cap"`
@@ -46,6 +48,7 @@ type Nomics struct {
 	} `json:"1d"`
 }
 
+//最後輸出的結構
 type BitCoin struct {
 	SourceName       string  `json:"source_name"`
 	Price            float64 `json:"price"`
@@ -54,29 +57,16 @@ type BitCoin struct {
 	PercentChange24h float64 `json:"percent_change_24h"`
 }
 
+//儲存最後成功搜尋到的資料
 var cache [3]BitCoin
 
-func GetBitCoinUSD(w http.ResponseWriter, r *http.Request) {
-	var wg sync.WaitGroup
-	wg.Add(3)
-	var bitcoins []BitCoin
-	go coinMarketCap(&bitcoins, &wg)
-	go coinGecKo(&bitcoins, &wg)
-	go nomics(&bitcoins, &wg)
-	wg.Wait()
-	w.Header().Set("Content-Type", "application/json")
-	w.Header().Set("Access-Control-Allow-Origin", "*")
-	w.Header().Set("Access-Control-Allow-Methods", "GET")
-	w.Header().Set("Access-Control-Allow-Headers", "Accept, Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization")
-	respJSON, _ := json.Marshal(bitcoins)
-	w.Write(respJSON)
-}
-
-func coinMarketCap(t *[]BitCoin, wg *sync.WaitGroup) {
+//從CoinMarketCap提供的API，獲取BTC當前價格相關資料，之後轉成我們整合的格式(BitCoin)，append到[]BitCoin中。
+func coinMarketCap(t []BitCoin, wg *sync.WaitGroup) {
+	defer wg.Done()
 	req, err := http.NewRequest("GET", "https://pro-api.coinmarketcap.com/v1/cryptocurrency/quotes/latest", nil)
 	if err != nil {
-		fmt.Println("Error create request")
-		os.Exit(1)
+		log.Println("Error create request")
+		return
 	}
 	q := url.Values{}
 	q.Add("symbol", "BTC")
@@ -85,7 +75,7 @@ func coinMarketCap(t *[]BitCoin, wg *sync.WaitGroup) {
 	req.Header.Add("X-CMC_PRO_API_KEY", viper.GetString("CoinMarketCap-API-KEY"))
 	req.URL.RawQuery = q.Encode()
 	raw := CoinMarketCap{}
-	statusCode := request(req, &raw)
+	statusCode := sendRequest(req, &raw)
 	if statusCode == http.StatusOK {
 		bitcon := BitCoin{
 			SourceName:       "CoinMarketCap",
@@ -94,19 +84,20 @@ func coinMarketCap(t *[]BitCoin, wg *sync.WaitGroup) {
 			Volume24h:        raw.Data.BTC.Quote.USD.Volume24h,
 			PercentChange24h: raw.Data.BTC.Quote.USD.PercentChange24h,
 		}
-		*t = append(*t, bitcon)
+		t[0] = bitcon
 		cache[0] = bitcon
 	} else if cache[0] != (BitCoin{}) {
-		*t = append(*t, cache[0])
+		t[0] = cache[0]
 	}
-	wg.Done()
 }
 
-func coinGecKo(t *[]BitCoin, wg *sync.WaitGroup) {
+//從CoinGecKo提供的API，獲取BTC當前價格相關資料，之後轉成我們整合的格式(BitCoin)，append到[]BitCoin中。
+func coinGecKo(t []BitCoin, wg *sync.WaitGroup) {
+	defer wg.Done()
 	req, err := http.NewRequest("GET", "https://api.coingecko.com/api/v3/simple/price", nil)
 	if err != nil {
-		fmt.Println("Error create request")
-		os.Exit(1)
+		log.Println("Error create request")
+		return
 	}
 	q := url.Values{}
 	q.Add("ids", "bitcoin")
@@ -116,7 +107,7 @@ func coinGecKo(t *[]BitCoin, wg *sync.WaitGroup) {
 	q.Add("include_24hr_change", "true")
 	req.URL.RawQuery = q.Encode()
 	raw := CoinGecKo{}
-	statusCode := request(req, &raw)
+	statusCode := sendRequest(req, &raw)
 	if statusCode == http.StatusOK {
 		bitcon := BitCoin{
 			SourceName:       "CoinGecKo",
@@ -125,22 +116,23 @@ func coinGecKo(t *[]BitCoin, wg *sync.WaitGroup) {
 			Volume24h:        raw.Bitcoin.Volume24h,
 			PercentChange24h: raw.Bitcoin.PercentChange24h,
 		}
-		*t = append(*t, bitcon)
+		t[1] = bitcon
 		cache[1] = bitcon
 	} else if cache[1] != (BitCoin{}) {
-		*t = append(*t, cache[1])
+		t[1] = cache[1]
 	}
-	wg.Done()
 }
 
-func nomics(t *[]BitCoin, wg *sync.WaitGroup) {
+//從Nomics提供的API，獲取BTC當前價格相關資料，之後轉成我們整合的格式(BitCoin)，append到[]BitCoin中。
+func nomics(t []BitCoin, wg *sync.WaitGroup) {
+	defer wg.Done()
 	req, err := http.NewRequest("GET", "https://api.nomics.com/v1/currencies/ticker?key="+viper.GetString("Nomics-API-KEY")+"&ids=BTC&interval=1d", nil)
 	if err != nil {
-		fmt.Println("Error create request")
-		os.Exit(1)
+		log.Println("Error create request")
+		return
 	}
 	var raw []Nomics
-	statusCode := request(req, &raw)
+	statusCode := sendRequest(req, &raw)
 	if statusCode == http.StatusOK {
 		price, _ := strconv.ParseFloat(raw[0].Price, 64)
 		marketCap, _ := strconv.ParseFloat(raw[0].MarketCap, 64)
@@ -153,20 +145,20 @@ func nomics(t *[]BitCoin, wg *sync.WaitGroup) {
 			Volume24h:        volume24h,
 			PercentChange24h: percentChange24h,
 		}
-		*t = append(*t, bitcon)
+		t[2] = bitcon
 		cache[2] = bitcon
 	} else if cache[2] != (BitCoin{}) {
-		*t = append(*t, cache[2])
+		t[2] = cache[2]
 	}
-	wg.Done()
 }
 
-func request(r *http.Request, raw interface{}) int {
+// 發出請求，給據給定的http.Request，回傳http status code，並且將得到的結果unmarshal到raw中
+func sendRequest(r *http.Request, raw interface{}) int {
 	client := &http.Client{}
 	resp, err := client.Do(r)
 	if err != nil {
-		fmt.Println("Error sending request to server")
-		os.Exit(1)
+		log.Println("Error sending request to server")
+		return resp.StatusCode
 	}
 	reqBody, _ := ioutil.ReadAll(resp.Body)
 	if err := json.Unmarshal(reqBody, raw); err != nil {

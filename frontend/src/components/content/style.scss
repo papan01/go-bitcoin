@@ -1,0 +1,35 @@
+table {
+  border-collapse: collapse;
+  width: 100%;
+  max-width: 100%;
+  margin-bottom: 20px;
+  > thead,
+  > tbody,
+  > tfoot {
+    > tr {
+      > th {
+        text-align: left;
+        padding: 10px;
+        line-height: 1.429;
+      }
+
+      > td {
+        padding: 10px;
+        line-height: 1.429;
+      }
+    }
+  }
+}
+
+table > thead > tr > th {
+  border-bottom: 3px solid rgba(115,124,153,0.2);
+  font-weight: bold;
+}
+
+table > tbody + tbody {
+  border-top: 3px solid rgba(115,124,153,0.2);
+}
+
+table > tbody > tr > td {
+  border-bottom: 1px solid rgba(115,124,153,0.2);
+}
