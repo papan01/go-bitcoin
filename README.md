@@ -7,7 +7,20 @@
 
 ## 🌟 Usage
 
-待補。
+請先確認您有安裝Go在您的環境當中，
+首先下載專案:
+```
+git clone https://github.com/papan01/go-bitcoin.git your-project-name
+cd your-project-name
+```
+在使用前先去[CoinMarketCap](https://coinmarketcap.com/api/documentation/v1/)與[Nomics](https://docs.nomics.com/)申請API使用，並且於`cofing/config_example.json`中填入API Key，接著把`config_example.json`改名為`config.json`。
+執行程式:
+```
+go run main.go
+```
+
+打開瀏覽器輸入網址`http://localhost:8080`即可以看到結果。
+
 
 ## ⚔️ Features
 
